@@ -1,24 +1,25 @@
-'use strict';
+"use strict";
 
-const api = require('../api.js');
-const tags = require('../tags.js');
-const misc = require('../util/misc.js');
-const uri = require('../util/uri.js');
-const settings = require('../models/settings.js');
-const events = require('../events.js');
-const views = require('../util/views.js');
-const TagAutoCompleteControl = require('./tag_auto_complete_control.js');
+const api = require("../api.js");
+const tags = require("../tags.js");
+const misc = require("../util/misc.js");
+const uri = require("../util/uri.js");
+const Tag = require("../models/tag.js");
+const settings = require("../models/settings.js");
+const events = require("../events.js");
+const views = require("../util/views.js");
+const TagAutoCompleteControl = require("./tag_auto_complete_control.js");
 
 const KEY_SPACE = 32;
 const KEY_RETURN = 13;
 
-const SOURCE_INIT = 'init';
-const SOURCE_IMPLICATION = 'implication';
-const SOURCE_USER_INPUT = 'user-input';
-const SOURCE_SUGGESTION = 'suggestions';
-const SOURCE_CLIPBOARD = 'clipboard';
+const SOURCE_INIT = "init";
+const SOURCE_IMPLICATION = "implication";
+const SOURCE_USER_INPUT = "user-input";
+const SOURCE_SUGGESTION = "suggestions";
+const SOURCE_CLIPBOARD = "clipboard";
 
-const template = views.getTemplate('tag-input');
+const template = views.getTemplate("tag-input");
 
 function _fadeOutListItemNodeStatus(listItemNode) {
     if (listItemNode.classList.length) {
@@ -27,8 +28,7 @@ function _fadeOutListItemNodeStatus(listItemNode) {
         }
         listItemNode.fadeTimeout = window.setTimeout(() => {
             while (listItemNode.classList.length) {
-                listItemNode.classList.remove(
-                    listItemNode.classList.item(0));
+                listItemNode.classList.remove(listItemNode.classList.item(0));
             }
             listItemNode.fadeTimeout = null;
         }, 2500);
@@ -50,7 +50,9 @@ class SuggestionList {
     }
 
     set(suggestion, weight) {
-        if (this._suggestions.hasOwnProperty(suggestion)) {
+        if (
+            Object.prototype.hasOwnProperty.call(this._suggestions, suggestion)
+        ) {
             weight = Math.max(weight, this._suggestions[suggestion]);
         }
         this._suggestions[suggestion] = weight;
@@ -71,185 +73,185 @@ class SuggestionList {
         tuples.sort((a, b) => {
             let weightDiff = b[1] - a[1];
             let nameDiff = a[0].localeCompare(b[0]);
-            return weightDiff == 0 ? nameDiff : weightDiff;
+            return weightDiff === 0 ? nameDiff : weightDiff;
         });
-        return tuples.map(tuple => {
-            return {tagName: tuple[0], weight: tuple[1]};
+        return tuples.map((tuple) => {
+            return { tagName: tuple[0], weight: tuple[1] };
         });
     }
 }
 
 class TagInputControl extends events.EventTarget {
-    constructor(hostNode) {
+    constructor(hostNode, tagList) {
         super();
-        this.tags = [];
+        this.tags = tagList;
         this._hostNode = hostNode;
         this._suggestions = new SuggestionList();
+        this._tagToListItemNode = new Map();
 
         // dom
         const editAreaNode = template();
         this._editAreaNode = editAreaNode;
-        this._tagInputNode = editAreaNode.querySelector('input');
-        this._suggestionsNode = editAreaNode.querySelector('.tag-suggestions');
-        this._tagListNode = editAreaNode.querySelector('ul.compact-tags');
+        this._tagInputNode = editAreaNode.querySelector("input");
+        this._suggestionsNode = editAreaNode.querySelector(".tag-suggestions");
+        this._tagListNode = editAreaNode.querySelector("ul.compact-tags");
 
         this._autoCompleteControl = new TagAutoCompleteControl(
-            this._tagInputNode, {
+            this._tagInputNode,
+            {
                 getTextToFind: () => {
                     return this._tagInputNode.value;
                 },
-                confirm: text => {
-                    this._tagInputNode.value = '';
-                    this.addTag(text, SOURCE_USER_INPUT);
+                confirm: (tag) => {
+                    this._tagInputNode.value = "";
+                    // note: tags from autocomplete don't contain implications
+                    // so they need to be looked up in API
+                    this.addTagByName(tag.names[0], SOURCE_USER_INPUT);
                 },
-                delete: text => {
-                    this._tagInputNode.value = '';
-                    this.deleteTag(text);
+                delete: (tag) => {
+                    this._tagInputNode.value = "";
+                    this.deleteTag(tag);
                 },
                 verticalShift: -2,
-                isTaggedWith: tagName => this.isTaggedWith(tagName),
-            });
+                isTaggedWith: (tagName) => this.tags.isTaggedWith(tagName),
+            }
+        );
 
         // dom events
-        this._tagInputNode.addEventListener(
-            'keydown', e => this._evtInputKeyDown(e));
-        this._tagInputNode.addEventListener(
-            'paste', e => this._evtInputPaste(e));
-        this._editAreaNode.querySelector('a.opacity').addEventListener(
-            'click', e => this._evtToggleSuggestionsPopupOpacityClick(e));
-        this._editAreaNode.querySelector('a.close').addEventListener(
-            'click', e => this._evtCloseSuggestionsPopupClick(e));
-        this._editAreaNode.querySelector('button').addEventListener(
-            'click', e => this._evtAddTagButtonClick(e));
+        this._tagInputNode.addEventListener("keydown", (e) =>
+            this._evtInputKeyDown(e)
+        );
+        this._tagInputNode.addEventListener("paste", (e) =>
+            this._evtInputPaste(e)
+        );
+        this._editAreaNode
+            .querySelector("a.opacity")
+            .addEventListener("click", (e) =>
+                this._evtToggleSuggestionsPopupOpacityClick(e)
+            );
+        this._editAreaNode
+            .querySelector("a.close")
+            .addEventListener("click", (e) =>
+                this._evtCloseSuggestionsPopupClick(e)
+            );
+        this._editAreaNode
+            .querySelector("button")
+            .addEventListener("click", (e) => this._evtAddTagButtonClick(e));
 
         // show
-        this._hostNode.style.display = 'none';
+        this._hostNode.style.display = "none";
         this._hostNode.parentNode.insertBefore(
-            this._editAreaNode, hostNode.nextSibling);
-
-        this.addEventListener('change', e => this._evtTagsChanged(e));
-        this.addEventListener('add', e => this._evtTagAdded(e));
-        this.addEventListener('remove', e => this._evtTagRemoved(e));
+            this._editAreaNode,
+            hostNode.nextSibling
+        );
 
         // add existing tags
-        this.addMultipleTags(this._hostNode.value, SOURCE_INIT);
+        for (let tag of [...this.tags]) {
+            const listItemNode = this._createListItemNode(tag);
+            this._tagListNode.appendChild(listItemNode);
+        }
     }
 
-    isTaggedWith(tagName) {
-        let actualTag = null;
-        [tagName, actualTag] = this._transformTagName(tagName);
+    addTagByText(text, source) {
+        for (let tagName of text
+            .split(/\s+/)
+            .filter((word) => word)
+            .reverse()) {
+            this.addTagByName(tagName, source);
+        }
+    }
+
+    addTagByName(name, source) {
+        name = name.trim();
+        if (!name) {
+            return;
+        }
+        return Tag.get(name).then(
+            (tag) => {
+                return this.addTag(tag, source);
+            },
+            () => {
+                const tag = new Tag();
+                tag.names = [name];
+                tag.category = null;
+                return this.addTag(tag, source);
+            }
+        );
+    }
+
+    addTag(tag, source) {
+        if (source !== SOURCE_INIT && this.tags.isTaggedWith(tag.names[0])) {
+            const listItemNode = this._getListItemNode(tag);
+            if (source !== SOURCE_IMPLICATION) {
+                listItemNode.classList.add("duplicate");
+                _fadeOutListItemNodeStatus(listItemNode);
+            }
+            return Promise.resolve();
+        }
+
         return this.tags
-            .map(t => t.toLowerCase())
-            .includes(tagName.toLowerCase());
+            .addByName(tag.names[0], false)
+            .then(() => {
+                const listItemNode = this._createListItemNode(tag);
+                if (!tag.category) {
+                    listItemNode.classList.add("new");
+                }
+                if (source === SOURCE_IMPLICATION) {
+                    listItemNode.classList.add("implication");
+                }
+                this._tagListNode.prependChild(listItemNode);
+                _fadeOutListItemNodeStatus(listItemNode);
+
+                return Promise.all(
+                    tag.implications.map((implication) =>
+                        this.addTagByName(
+                            implication.names[0],
+                            SOURCE_IMPLICATION
+                        )
+                    )
+                );
+            })
+            .then(() => {
+                this.dispatchEvent(
+                    new CustomEvent("add", {
+                        detail: { tag: tag, source: source },
+                    })
+                );
+                this.dispatchEvent(new CustomEvent("change"));
+                return Promise.resolve();
+            });
     }
 
-    addMultipleTags(text, source) {
-        for (let tagName of text.split(/\s+/).filter(word => word).reverse()) {
-            this.addTag(tagName, source);
-        }
-    }
-
-    addTag(tagName, source) {
-        tagName = tags.getOriginalTagName(tagName);
-
-        if (!tagName) {
+    deleteTag(tag) {
+        if (!this.tags.isTaggedWith(tag.names[0])) {
             return;
         }
-
-        let actualTag = null;
-        [tagName, actualTag] = this._transformTagName(tagName);
-        if (!this.isTaggedWith(tagName)) {
-            this.tags.push(tagName);
-        }
-        this.dispatchEvent(new CustomEvent('add', {
-            detail: {
-                tagName: tagName,
-                source: source,
-            },
-        }));
-        this.dispatchEvent(new CustomEvent('change'));
-
-        // XXX: perhaps we should aggregate suggestions from all implications
-        // for call to the _suggestRelations
-        if (source !== SOURCE_INIT && source !== SOURCE_CLIPBOARD) {
-            for (let otherTagName of tags.getAllImplications(tagName)) {
-                this.addTag(otherTagName, SOURCE_IMPLICATION);
-            }
-        }
-    }
-
-    deleteTag(tagName) {
-        if (!tagName) {
-            return;
-        }
-        let actualTag = null;
-        [tagName, actualTag] = this._transformTagName(tagName);
-        if (!this.isTaggedWith(tagName)) {
-            return;
-        }
+        this.tags.removeByName(tag.names[0]);
         this._hideAutoComplete();
-        this.tags = this.tags.filter(
-            t => t.toLowerCase() != tagName.toLowerCase());
-        this.dispatchEvent(new CustomEvent('remove', {
-            detail: {
-                tagName: tagName,
-            },
-        }));
-        this.dispatchEvent(new CustomEvent('change'));
-    }
 
-    _evtTagsChanged(e) {
-        this._hostNode.value = this.tags.join(' ');
-        this._hostNode.dispatchEvent(new CustomEvent('change'));
-    }
+        this._deleteListItemNode(tag);
 
-    _evtTagAdded(e) {
-        const tagName = e.detail.tagName;
-        const actualTag = tags.getTagByName(tagName);
-        let listItemNode = this._getListItemNodeFromTagName(tagName);
-        const alreadyAdded = !!listItemNode;
-        if (alreadyAdded) {
-            if (e.detail.source !== SOURCE_IMPLICATION) {
-                listItemNode.classList.add('duplicate');
-            }
-        } else {
-            listItemNode = this._createListItemNode(tagName);
-            if (!actualTag) {
-                listItemNode.classList.add('new');
-            }
-            if (e.detail.source === SOURCE_IMPLICATION) {
-                listItemNode.classList.add('implication');
-            }
-            this._tagListNode.prependChild(listItemNode);
-        }
-        _fadeOutListItemNodeStatus(listItemNode);
-
-        if ([SOURCE_USER_INPUT, SOURCE_SUGGESTION].includes(e.detail.source) &&
-                actualTag) {
-            this._loadSuggestions(actualTag);
-        }
-    }
-
-    _evtTagRemoved(e) {
-        const listItemNode = this._getListItemNodeFromTagName(e.detail.tagName);
-        if (listItemNode) {
-            listItemNode.parentNode.removeChild(listItemNode);
-        }
+        this.dispatchEvent(
+            new CustomEvent("remove", {
+                detail: { tag: tag },
+            })
+        );
+        this.dispatchEvent(new CustomEvent("change"));
     }
 
     _evtInputPaste(e) {
         e.preventDefault();
-        const pastedText = window.clipboardData ?
-            window.clipboardData.getData('Text') :
-            (e.originalEvent || e).clipboardData.getData('text/plain');
+        const pastedText = window.clipboardData
+            ? window.clipboardData.getData("Text")
+            : (e.originalEvent || e).clipboardData.getData("text/plain");
 
         if (pastedText.length > 2000) {
-            window.alert('Pasted text is too long.');
+            window.alert("Pasted text is too long.");
             return;
         }
         this._hideAutoComplete();
-        this.addMultipleTags(pastedText, SOURCE_CLIPBOARD);
-        this._tagInputNode.value = '';
+        this.addTagByText(pastedText, SOURCE_CLIPBOARD);
+        this._tagInputNode.value = "";
     }
 
     _evtCloseSuggestionsPopupClick(e) {
@@ -259,8 +261,8 @@ class TagInputControl extends events.EventTarget {
 
     _evtAddTagButtonClick(e) {
         e.preventDefault();
-        this.addTag(this._tagInputNode.value, SOURCE_USER_INPUT);
-        this._tagInputNode.value = '';
+        this.addTagByName(this._tagInputNode.value, SOURCE_USER_INPUT);
+        this._tagInputNode.value = "";
     }
 
     _evtToggleSuggestionsPopupOpacityClick(e) {
@@ -269,91 +271,91 @@ class TagInputControl extends events.EventTarget {
     }
 
     _evtInputKeyDown(e) {
-        if (e.which == KEY_RETURN || e.which == KEY_SPACE) {
+        if (e.which === KEY_RETURN || e.which === KEY_SPACE) {
             e.preventDefault();
             this._hideAutoComplete();
-            this.addMultipleTags(this._tagInputNode.value, SOURCE_USER_INPUT);
-            this._tagInputNode.value = '';
+            this.addTagByText(this._tagInputNode.value, SOURCE_USER_INPUT);
+            this._tagInputNode.value = "";
         }
     }
 
-    _transformTagName(tagName) {
-        const actualTag = tags.getTagByName(tagName);
-        if (actualTag) {
-            tagName = actualTag.names[0];
-        }
-        return [tagName, actualTag];
-    }
+    _createListItemNode(tag) {
+        const className = tag.category
+            ? misc.makeCssName(tag.category, "tag")
+            : null;
 
-    _getListItemNodeFromTagName(tagName) {
-        let actualTag = null;
-        [tagName, actualTag] = this._transformTagName(tagName);
-        for (let listItemNode of this._tagListNode.querySelectorAll('li')) {
-            if (listItemNode.getAttribute('data-tag').toLowerCase() ===
-                    tagName.toLowerCase()) {
-                return listItemNode;
-            }
-        }
-        return null;
-    }
-
-    _createListItemNode(tagName) {
-        let actualTag = null;
-        [tagName, actualTag] = this._transformTagName(tagName);
-        const className = actualTag ?
-            misc.makeCssName(actualTag.category, 'tag') :
-            null;
-
-        const tagLinkNode = document.createElement('a');
+        const tagLinkNode = document.createElement("a");
         if (className) {
             tagLinkNode.classList.add(className);
         }
         tagLinkNode.setAttribute(
-            'href', uri.formatClientLink('tag', tagName));
-        const tagIconNode = document.createElement('i');
-        tagIconNode.classList.add('fa');
-        tagIconNode.classList.add('fa-tag');
+            "href",
+            uri.formatClientLink("tag", tag.names[0])
+        );
+
+        const tagIconNode = document.createElement("i");
+        tagIconNode.classList.add("fa");
+        tagIconNode.classList.add("fa-tag");
         tagLinkNode.appendChild(tagIconNode);
 
-        const searchLinkNode = document.createElement('a');
+        const searchLinkNode = document.createElement("a");
         if (className) {
             searchLinkNode.classList.add(className);
         }
         searchLinkNode.setAttribute(
-            'href', uri.formatClientLink('posts', {query: tagName}));
-        searchLinkNode.textContent = tagName + ' ';
-        searchLinkNode.addEventListener('click', e => {
+            "href",
+            uri.formatClientLink("posts", {
+                query: uri.escapeColons(tag.names[0]),
+            })
+        );
+        searchLinkNode.textContent = tag.names[0] + " ";
+        searchLinkNode.addEventListener("click", (e) => {
             e.preventDefault();
-            if (actualTag) {
-                this._suggestions.clear();
-                this._loadSuggestions(actualTag);
+            this._suggestions.clear();
+            if (tag.postCount > 0) {
+                this._loadSuggestions(tag);
                 this._removeSuggestionsPopupOpacity();
             } else {
                 this._closeSuggestionsPopup();
             }
         });
 
-        const usagesNode = document.createElement('span');
-        usagesNode.classList.add('tag-usages');
-        usagesNode.setAttribute(
-            'data-pseudo-content', actualTag ? actualTag.usages : 0);
+        const usagesNode = document.createElement("span");
+        usagesNode.classList.add("tag-usages");
+        usagesNode.setAttribute("data-pseudo-content", tag.postCount);
 
-        const removalLinkNode = document.createElement('a');
-        removalLinkNode.classList.add('remove-tag');
-        removalLinkNode.setAttribute('href', '');
-        removalLinkNode.setAttribute('data-pseudo-content', '×');
-        removalLinkNode.addEventListener('click', e => {
+        const removalLinkNode = document.createElement("a");
+        removalLinkNode.classList.add("remove-tag");
+        removalLinkNode.setAttribute("href", "");
+        removalLinkNode.setAttribute("data-pseudo-content", "×");
+        removalLinkNode.addEventListener("click", (e) => {
             e.preventDefault();
-            this.deleteTag(tagName);
+            this.deleteTag(tag);
         });
 
-        const listItemNode = document.createElement('li');
-        listItemNode.setAttribute('data-tag', tagName);
+        const listItemNode = document.createElement("li");
         listItemNode.appendChild(removalLinkNode);
         listItemNode.appendChild(tagLinkNode);
         listItemNode.appendChild(searchLinkNode);
         listItemNode.appendChild(usagesNode);
+        for (let name of tag.names) {
+            this._tagToListItemNode.set(name, listItemNode);
+        }
         return listItemNode;
+    }
+
+    _deleteListItemNode(tag) {
+        const listItemNode = this._getListItemNode(tag);
+        if (listItemNode) {
+            listItemNode.parentNode.removeChild(listItemNode);
+        }
+        for (let name of tag.names) {
+            this._tagToListItemNode.delete(name);
+        }
+    }
+
+    _getListItemNode(tag) {
+        return this._tagToListItemNode.get(tag.names[0]);
     }
 
     _loadSuggestions(tag) {
@@ -361,20 +363,25 @@ class TagInputControl extends events.EventTarget {
         if (!browsingSettings.tagSuggestions) {
             return;
         }
-        api.get(
-                uri.formatApiLink('tag-siblings', tag.names[0]),
-                {noProgress: true})
-            .then(response => {
-                return Promise.resolve(response.results);
-            }, response => {
-                return Promise.resolve([]);
-            }).then(siblings => {
-                const args = siblings.map(s => s.occurrences);
+        api.get(uri.formatApiLink("tag-siblings", tag.names[0]), {
+            noProgress: true,
+        })
+            .then(
+                (response) => {
+                    return Promise.resolve(response.results);
+                },
+                (response) => {
+                    return Promise.resolve([]);
+                }
+            )
+            .then((siblings) => {
+                const args = siblings.map((s) => s.occurrences);
                 let maxSiblingOccurrences = Math.max(1, ...args);
                 for (let sibling of siblings) {
                     this._suggestions.set(
                         sibling.tag.names[0],
-                        sibling.occurrences * 4.9 / maxSiblingOccurrences);
+                        (sibling.occurrences * 4.9) / maxSiblingOccurrences
+                    );
                 }
                 for (let suggestion of tag.suggestions || []) {
                     this._suggestions.set(suggestion, 5);
@@ -388,10 +395,10 @@ class TagInputControl extends events.EventTarget {
     }
 
     _refreshSuggestionsPopup() {
-        if (!this._suggestionsNode.classList.contains('shown')) {
+        if (!this._suggestionsNode.classList.contains("shown")) {
             return;
         }
-        const listNode = this._suggestionsNode.querySelector('ul');
+        const listNode = this._suggestionsNode.querySelector("ul");
         listNode.scrollTop = 0;
         while (listNode.firstChild) {
             listNode.removeChild(listNode.firstChild);
@@ -399,40 +406,40 @@ class TagInputControl extends events.EventTarget {
         for (let tuple of this._suggestions.getAll()) {
             const tagName = tuple.tagName;
             const weight = tuple.weight;
-            if (this.isTaggedWith(tagName)) {
+            if (this.tags.isTaggedWith(tagName)) {
                 continue;
             }
 
-            const actualTag = tags.getTagByName(tagName);
-            const addLinkNode = document.createElement('a');
+            const addLinkNode = document.createElement("a");
             addLinkNode.textContent = tagName;
-            addLinkNode.classList.add('add-tag');
-            addLinkNode.setAttribute('href', '');
-            if (actualTag) {
+            addLinkNode.classList.add("add-tag");
+            addLinkNode.setAttribute("href", "");
+            Tag.get(tagName).then((tag) => {
                 addLinkNode.classList.add(
-                    misc.makeCssName(actualTag.category, 'tag'));
-            }
-            addLinkNode.addEventListener('click', e => {
+                    misc.makeCssName(tag.category, "tag")
+                );
+            });
+            addLinkNode.addEventListener("click", (e) => {
                 e.preventDefault();
                 listNode.removeChild(listItemNode);
-                this.addTag(tagName, SOURCE_SUGGESTION);
+                this.addTagByName(tagName, SOURCE_SUGGESTION);
             });
 
-            const weightNode = document.createElement('span');
-            weightNode.classList.add('tag-weight');
-            weightNode.setAttribute('data-pseudo-content', weight);
+            const weightNode = document.createElement("span");
+            weightNode.classList.add("tag-weight");
+            weightNode.setAttribute("data-pseudo-content", weight);
 
-            const removalLinkNode = document.createElement('a');
-            removalLinkNode.classList.add('remove-tag');
-            removalLinkNode.setAttribute('href', '');
-            removalLinkNode.setAttribute('data-pseudo-content', '×');
-            removalLinkNode.addEventListener('click', e => {
+            const removalLinkNode = document.createElement("a");
+            removalLinkNode.classList.add("remove-tag");
+            removalLinkNode.setAttribute("href", "");
+            removalLinkNode.setAttribute("data-pseudo-content", "×");
+            removalLinkNode.addEventListener("click", (e) => {
                 e.preventDefault();
                 listNode.removeChild(listItemNode);
                 this._suggestions.ban(tagName);
             });
 
-            const listItemNode = document.createElement('li');
+            const listItemNode = document.createElement("li");
             listItemNode.appendChild(removalLinkNode);
             listItemNode.appendChild(weightNode);
             listItemNode.appendChild(addLinkNode);
@@ -442,19 +449,19 @@ class TagInputControl extends events.EventTarget {
 
     _closeSuggestionsPopup() {
         this._suggestions.clear();
-        this._suggestionsNode.classList.remove('shown');
+        this._suggestionsNode.classList.remove("shown");
     }
 
     _removeSuggestionsPopupOpacity() {
-        this._suggestionsNode.classList.remove('translucent');
+        this._suggestionsNode.classList.remove("translucent");
     }
 
     _toggleSuggestionsPopupOpacity() {
-        this._suggestionsNode.classList.toggle('translucent');
+        this._suggestionsNode.classList.toggle("translucent");
     }
 
     _openSuggestionsPopup() {
-        this._suggestionsNode.classList.add('shown');
+        this._suggestionsNode.classList.add("shown");
         this._refreshSuggestionsPopup();
     }
 

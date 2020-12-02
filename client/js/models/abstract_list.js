@@ -1,6 +1,6 @@
-'use strict';
+"use strict";
 
-const events = require('../events.js');
+const events = require("../events.js");
 
 class AbstractList extends events.EventTarget {
     constructor() {
@@ -13,13 +13,15 @@ class AbstractList extends events.EventTarget {
         for (let item of response) {
             const addedItem = this._itemClass.fromResponse(item);
             if (addedItem.addEventListener) {
-                addedItem.addEventListener('delete', e => {
+                addedItem.addEventListener("delete", (e) => {
                     ret.remove(addedItem);
                 });
-                addedItem.addEventListener('change', e => {
-                    ret.dispatchEvent(new CustomEvent('change', {
-                        detail: e.detail,
-                    }));
+                addedItem.addEventListener("change", (e) => {
+                    ret.dispatchEvent(
+                        new CustomEvent("change", {
+                            detail: e.detail,
+                        })
+                    );
                 });
             }
             ret._list.push(addedItem);
@@ -27,23 +29,34 @@ class AbstractList extends events.EventTarget {
         return ret;
     }
 
+    sync(plainList) {
+        this.clear();
+        for (let item of plainList || []) {
+            this.add(this.constructor._itemClass.fromResponse(item));
+        }
+    }
+
     add(item) {
         if (item.addEventListener) {
-            item.addEventListener('delete', e => {
+            item.addEventListener("delete", (e) => {
                 this.remove(item);
             });
-            item.addEventListener('change', e => {
-                this.dispatchEvent(new CustomEvent('change', {
-                    detail: e.detail,
-                }));
+            item.addEventListener("change", (e) => {
+                this.dispatchEvent(
+                    new CustomEvent("change", {
+                        detail: e.detail,
+                    })
+                );
             });
         }
         this._list.push(item);
         const detail = {};
         detail[this.constructor._itemName] = item;
-        this.dispatchEvent(new CustomEvent('add', {
-            detail: detail,
-        }));
+        this.dispatchEvent(
+            new CustomEvent("add", {
+                detail: detail,
+            })
+        );
     }
 
     clear() {
@@ -60,9 +73,11 @@ class AbstractList extends events.EventTarget {
             this._list.splice(index, 1);
             const detail = {};
             detail[this.constructor._itemName] = itemToRemove;
-            this.dispatchEvent(new CustomEvent('remove', {
-                detail: detail,
-            }));
+            this.dispatchEvent(
+                new CustomEvent("remove", {
+                    detail: detail,
+                })
+            );
             return;
         }
     }
@@ -73,6 +88,14 @@ class AbstractList extends events.EventTarget {
 
     at(index) {
         return this._list[index];
+    }
+
+    map(...args) {
+        return this._list.map(...args);
+    }
+
+    filter(...args) {
+        return this._list.filter(...args);
     }
 
     [Symbol.iterator]() {

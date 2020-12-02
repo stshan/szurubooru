@@ -50,14 +50,32 @@
                     name: 'loop',
                     checked: ctx.post.flags.includes('loop'),
                 }) %>
+                <%= ctx.makeCheckbox({
+                    text: 'Sound',
+                    name: 'sound',
+                    checked: ctx.post.flags.includes('sound'),
+                }) %>
+            </section>
+        <% } %>
+
+        <% if (ctx.canEditPostSource) { %>
+            <section class='post-source'>
+                <%= ctx.makeTextarea({
+                    text: 'Source',
+                    value: ctx.post.source,
+                }) %>
             </section>
         <% } %>
 
         <% if (ctx.canEditPostTags) { %>
             <section class='tags'>
-                <%= ctx.makeTextInput({
-                    value: ctx.post.tags.join(' '),
-                }) %>
+                <%= ctx.makeTextInput({}) %>
+            </section>
+        <% } %>
+
+        <% if (ctx.canEditPoolPosts) { %>
+            <section class='pools'>
+                <%= ctx.makeTextInput({}) %>
             </section>
         <% } %>
 
@@ -66,6 +84,12 @@
                 <a href class='add'>Add a note</a>
                 <%= ctx.makeTextarea({disabled: true, text: 'Content (supports Markdown)', rows: '8'}) %>
                 <a href class='delete inactive'>Delete selected note</a>
+                <% if (ctx.hasClipboard) { %>
+                    <br/>
+                    <a href class='copy'>Export notes to clipboard</a>
+                    <br/>
+                    <a href class='paste'>Import notes from clipboard</a>
+                <% } %>
             </section>
         <% } %>
 

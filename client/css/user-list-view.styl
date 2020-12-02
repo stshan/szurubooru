@@ -26,6 +26,10 @@
         height: 3em
         margin: 0.25em 0.6em 0 0
 
+.darktheme .user-list
+    ul li
+        background: $top-navigation-color-darktheme
+
 .user-list-header
     label
         display: none !important
@@ -33,7 +37,14 @@
     form
         width: auto
     input[name=search-text]
-        max-width: 15em
+        width: 25em
+        @media (max-width: 1000px)
+            width: 100%
     .append
+        vertical-align: middle
         font-size: 0.95em
         color: $inactive-link-color
+
+.darktheme .user-list-header
+    .append
+        color: $inactive-link-color-darktheme

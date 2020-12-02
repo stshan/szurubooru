@@ -1,12 +1,11 @@
-'use strict';
+"use strict";
 
-const config = require('../config.js');
-const events = require('../events.js');
-const views = require('../util/views.js');
-const TagAutoCompleteControl =
-    require('../controls/tag_auto_complete_control.js');
+const events = require("../events.js");
+const api = require("../api.js");
+const views = require("../util/views.js");
+const TagAutoCompleteControl = require("../controls/tag_auto_complete_control.js");
 
-const template = views.getTemplate('tag-merge');
+const template = views.getTemplate("tag-merge");
 
 class TagMergeView extends events.EventTarget {
     constructor(ctx) {
@@ -14,15 +13,24 @@ class TagMergeView extends events.EventTarget {
 
         this._tag = ctx.tag;
         this._hostNode = ctx.hostNode;
-        ctx.tagNamePattern = config.tagNameRegex;
+        ctx.tagNamePattern = api.getTagNameRegex();
         views.replaceContent(this._hostNode, template(ctx));
 
         views.decorateValidator(this._formNode);
         if (this._targetTagFieldNode) {
-            new TagAutoCompleteControl(this._targetTagFieldNode);
+            this._autoCompleteControl = new TagAutoCompleteControl(
+                this._targetTagFieldNode,
+                {
+                    confirm: (tag) =>
+                        this._autoCompleteControl.replaceSelectedText(
+                            tag.names[0],
+                            false
+                        ),
+                }
+            );
         }
 
-        this._formNode.addEventListener('submit', e => this._evtSubmit(e));
+        this._formNode.addEventListener("submit", (e) => this._evtSubmit(e));
     }
 
     clearMessages() {
@@ -47,25 +55,27 @@ class TagMergeView extends events.EventTarget {
 
     _evtSubmit(e) {
         e.preventDefault();
-        this.dispatchEvent(new CustomEvent('submit', {
-            detail: {
-                tag: this._tag,
-                targetTagName: this._targetTagFieldNode.value,
-                addAlias: this._addAliasCheckboxNode.checked,
-            },
-        }));
+        this.dispatchEvent(
+            new CustomEvent("submit", {
+                detail: {
+                    tag: this._tag,
+                    targetTagName: this._targetTagFieldNode.value,
+                    addAlias: this._addAliasCheckboxNode.checked,
+                },
+            })
+        );
     }
 
     get _formNode() {
-        return this._hostNode.querySelector('form');
+        return this._hostNode.querySelector("form");
     }
 
     get _targetTagFieldNode() {
-        return this._formNode.querySelector('input[name=target-tag]');
+        return this._formNode.querySelector("input[name=target-tag]");
     }
 
     get _addAliasCheckboxNode() {
-        return this._formNode.querySelector('input[name=alias]');
+        return this._formNode.querySelector("input[name=alias]");
     }
 }
 

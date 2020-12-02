@@ -8,7 +8,7 @@
     .page
         position: relative
         .page-header
-            margin: 0.5em 0.5em 0.5em 0
+            margin: 0.5em 0
             position: relative
             &:before
                 display: block
@@ -25,3 +25,9 @@
                 background: white
                 padding: 0 1em
                 z-index: 2
+
+.darktheme .pager
+    .page
+        .page-header
+            &:before
+                background: $top-navigation-color-darktheme

@@ -20,15 +20,15 @@
         </tr>
         <tr>
             <td><code>uploader</code></td>
-            <td>uploaded by given use (accepts wildcards)r</td>
+            <td>uploaded by given user (accepts wildcards)</td>
         </tr>
         <tr>
             <td><code>upload</code></td>
-            <td>alias of <code>upload</code></td>
+            <td>alias of <code>uploader</code></td>
         </tr>
         <tr>
             <td><code>submit</code></td>
-            <td>alias of <code>upload</code></td>
+            <td>alias of <code>uploader</code></td>
         </tr>
         <tr>
             <td><code>comment</code></td>
@@ -37,6 +37,14 @@
         <tr>
             <td><code>fav</code></td>
             <td>favorited by given user (accepts wildcards)</td>
+        </tr>
+        <tr>
+            <td><code>source</code></td>
+            <td>having given source URL (accepts wildcards)</td>
+        </tr>
+        <tr>
+            <td><code>pool</code></td>
+            <td>belonging to the pool with the given ID</td>
         </tr>
         <tr>
             <td><code>tag-count</code></td>
@@ -69,6 +77,10 @@
         <tr>
             <td><code>type</code></td>
             <td>given type of posts. <code>&lt;value&gt;</code> can be either <code>image</code>, <code>animation</code> (or <code>animated</code> or <code>anim</code>), <code>flash</code> (or <code>swf</code>) or <code>video</code> (or <code>webm</code>).</td>
+        </tr>
+        <tr>
+            <td><code>flag</code></td>
+            <td>having given flag. <code>&lt;value&gt;</code> can be either <code>loop</code> or <code>sound</code>.</td>
         </tr>
         <tr>
             <td><code>content-checksum</code></td>

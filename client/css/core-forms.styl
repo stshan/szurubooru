@@ -26,18 +26,31 @@ form:not(.horizontal)
         font-size: 80%
         line-height: 120%
 
+.darktheme form:not(.horizontal)
+    .hint
+        color: $inactive-link-color-darktheme
+
 form.horizontal
     display: inline-block
     margin-bottom: 1em
     .input, .buttons, ul
         display: inline-block
-        vertical-align: middle
+        vertical-align: top
         margin: 0
         padding: 0
         input
-            vertical-align: middle
+            vertical-align: top
     .buttons
         margin-right: 0.5em
+    @media (max-width: 1000px)
+        display: block
+        .input, .buttons, ul
+            display: block
+            margin-top: 0.5em
+            &:first-child
+                margin-top: 0
+        .buttons
+            margin-right: 0
 
 
 
@@ -129,6 +142,48 @@ input[type=checkbox]:focus + .checkbox:before
 
 
 /*
+ * Date and time inputs
+ */
+
+input[type=date],
+input[type=time]
+    vertical-align: top
+    font-family: 'Droid Sans', sans-serif
+    font-size: 100%
+    padding: 0.2em 0.3em
+    box-sizing: border-box
+    border: 2px solid $input-enabled-border-color
+    background: $input-enabled-background-color
+    color: $input-enabled-text-color
+    box-shadow: none /* :-moz-submit-invalid on FF */
+    transition: border-color 0.1s linear, background-color 0.1s linear
+
+    &:disabled
+        border: 2px solid $input-disabled-border-color
+        background: $input-disabled-background-color
+        color: $input-disabled-text-color
+
+    &:focus
+        border-color: $main-color
+
+    &[readonly]
+        border: 2px solid $input-disabled-border-color
+        background: $input-disabled-background-color
+        color: $input-disabled-text-color
+
+.darktheme
+    input[type=date],
+    input[type=time]
+        border: 2px solid darken($input-enabled-border-color, 75%)
+        background: darken($input-enabled-background-color, 75%)
+        color: $input-enabled-text-color-darktheme
+        &:disabled
+            background: darken($input-disabled-background-color, 75%)
+        &[readonly]
+            background: darken($input-disabled-background-color, 75%)
+
+
+/*
  * Regular inputs
  */
 select,
@@ -162,6 +217,21 @@ input[type=number]
         border: 2px solid $input-disabled-border-color
         background: $input-disabled-background-color
         color: $input-disabled-text-color
+
+.darktheme
+    select,
+    textarea,
+    input[type=text],
+    input[type=email],
+    input[type=password],
+    input[type=number]
+        border: 2px solid darken($input-enabled-border-color, 75%)
+        background: darken($input-enabled-background-color, 75%)
+        color: $input-enabled-text-color-darktheme
+        &:disabled
+            background: darken($input-disabled-background-color, 75%)
+        &[readonly]
+            background: darken($input-disabled-background-color, 75%)
 
 input[readonly],
 input[readonly]+.radio,
@@ -201,8 +271,9 @@ form.show-validation .input
         outline: 0
         border: 2px solid $input-good-border-color
         background: $input-good-background-color
-
-
+.darktheme form.show-validation .input
+    input:valid
+        background: darken($input-good-background-color, 75%)
 
 /*
  * Buttons
@@ -213,10 +284,13 @@ input[type=submit]
     cursor: pointer
     font-size: 100%
     padding: 0.2em 0.7em
+    border-radius: 0
     border: 2px solid $button-enabled-background-color
     background: $button-enabled-background-color
     color: $button-enabled-text-color
     outline: 0 /* something on Chrome */
+    -moz-appearance: none
+    -webkit-appearance: none
 
     &:disabled
         cursor: default
@@ -266,6 +340,10 @@ input::-moz-focus-inner
         button
             margin-left: 0.5em
 
+.darktheme .file-dropper-holder
+    .file-dropper
+        background: $window-color-darktheme
+
 input[type=file]:disabled+.file-dropper
     cursor: default
     opacity: .5
@@ -274,8 +352,6 @@ input[type=file]:active+.file-dropper,
 input[type=file]:focus+.file-dropper,
 .file-dropper.active
     border-color: $main-color
-
-
 
 .autocomplete
     position: absolute
@@ -301,6 +377,10 @@ input[type=file]:focus+.file-dropper,
             .disabled
                 color: $inactive-link-color
 
+.darktheme .autocomplete
+    background: $window-color-darktheme
+    ul li .disabled
+        color: $inactive-link-color-darktheme
 
 .anticomplete
     display: none
